@@ -1,13 +1,18 @@
 package quo.vadis.megasys.data.jpa.rsql;
 
+import cz.jirutka.rsql.parser.ast.RSQLOperators;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 import cz.jirutka.rsql.parser.ast.ComparisonOperator;
 import lombok.AllArgsConstructor;
@@ -23,51 +28,45 @@ public class GenericRsqlSpecification<T> implements Specification<T> {
 
   @Override
   public Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder) {
-    return Optional
-        .ofNullable(RsqlSearchOperation.getSimpleOperator(this.operator))
-        .map(operation -> {
-          List<Object> args = castArguments(root);
-          Object argument = args.get(0);
+    List<Object> args = castArguments(root);
+    Object argument = args.get(0);
 
-          switch (operation) {
-            case EQUAL: {
-              if (argument instanceof String) {
-                return builder.like(root.get(property), argument.toString().replace('*', '%'));
-              } else if (argument == null) {
-                return builder.isNull(root.get(property));
-              } else {
-                return builder.equal(root.get(property), argument);
-              }
-            }
-            case NOT_EQUAL: {
-              if (argument instanceof String) {
-                return builder.notLike(root.<String>get(property), argument.toString().replace('*', '%'));
-              } else if (argument == null) {
-                return builder.isNotNull(root.get(property));
-              } else {
-                return builder.notEqual(root.get(property), argument);
-              }
-            }
-            case GREATER_THAN: {
-              return builder.greaterThan(root.<String>get(property), argument.toString());
-            }
-            case GREATER_THAN_OR_EQUAL: {
-              return builder.greaterThanOrEqualTo(root.<String>get(property), argument.toString());
-            }
-            case LESS_THAN: {
-              return builder.lessThan(root.<String>get(property), argument.toString());
-            }
-            case LESS_THAN_OR_EQUAL: {
-              return builder.lessThanOrEqualTo(root.<String>get(property), argument.toString());
-            }
-            case IN:
-              return root.get(property).in(args);
-            case NOT_IN:
-              return builder.not(root.get(property).in(args));
-            default:
-              return null;
-          }
-        }).orElse(null);
+    if (StringUtils.equals(operator.getSymbol(), RSQLOperators.EQUAL.getSymbol())) {
+      if (argument instanceof String) {
+        return builder.like(root.get(property), argument.toString().replace('*', '%'));
+      } else if (argument == null) {
+        return builder.isNull(root.get(property));
+      } else {
+        return builder.equal(root.get(property), argument);
+      }
+    } else if (StringUtils
+        .equals(operator.getSymbol(), RSQLOperators.NOT_EQUAL.getSymbol())) {
+      if (argument instanceof String) {
+        return builder
+            .notLike(root.<String>get(property), argument.toString().replace('*', '%'));
+      } else if (argument == null) {
+        return builder.isNotNull(root.get(property));
+      } else {
+        return builder.notEqual(root.get(property), argument);
+      }
+    } else if (StringUtils
+        .equals(operator.getSymbol(), RSQLOperators.GREATER_THAN.getSymbol())) {
+      return builder.greaterThan(root.<String>get(property), argument.toString());
+    } else if (StringUtils
+        .equals(operator.getSymbol(), RSQLOperators.GREATER_THAN_OR_EQUAL.getSymbol())) {
+      return builder.greaterThanOrEqualTo(root.<String>get(property), argument.toString());
+    } else if (StringUtils
+        .equals(operator.getSymbol(), RSQLOperators.LESS_THAN.getSymbol())) {
+      return builder.lessThan(root.<String>get(property), argument.toString());
+    } else if (StringUtils
+        .equals(operator.getSymbol(), RSQLOperators.LESS_THAN_OR_EQUAL.getSymbol())) {
+      return builder.lessThanOrEqualTo(root.<String>get(property), argument.toString());
+    } else if (StringUtils.equals(operator.getSymbol(), RSQLOperators.IN.getSymbol())) {
+      return root.get(property).in(args);
+    } else if (StringUtils.equals(operator.getSymbol(), RSQLOperators.NOT_IN.getSymbol())) {
+      return builder.not(root.get(property).in(args));
+    }
+    return null;
   }
 
   private List<Object> castArguments(final Root<T> root) {
